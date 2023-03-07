@@ -152,14 +152,20 @@ app.post('/home_trans_stats',(req, res) => {
 				+ "UNION ALL "
 				+ "select sum(TransactionAmount) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'tran' as grp from transactionhistory where "
 				+ "LocalTransactionDate >= (now()-interval 65 day)  "
-				+ "and CardAcceptorIdentification = ?   "
+				+ "and CardAcceptorIdentification = ?  "
 				+ "group by LocalTransactionDate "
 				+ "UNION ALL "
 				+ "select sum(TotalCommissions) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'comm' as grp from transactionhistory where "
 				+ "LocalTransactionDate >= (now()-interval 65 day)  "
-				+ "and CardAcceptorIdentification = ?   "
-				+ "group by LocalTransactionDate;",
-    [req.body.merchantId,req.body.merchantId,req.body.merchantId],
+				+ "and CardAcceptorIdentification = ?  "
+				+ "group by LocalTransactionDate "
+				+ "UNION ALL "
+				+ "select sum(TotalTaxes) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'fees' as grp from transactionhistory where "
+				+ "LocalTransactionDate >= (now()-interval 65 day)  "
+				+ "and CardAcceptorIdentification = ?  "
+				+ "group by LocalTransactionDate "
+        ,
+    [req.body.merchantId,req.body.merchantId,req.body.merchantId,req.body.merchantId],
     function (err, data, fields) {
       if (err) return next(new AppError(err, 500));
       res.status(200).json({
@@ -173,13 +179,34 @@ app.post('/home_trans_stats',(req, res) => {
 app.post('/home_trans_latest',(req, res) => {
   conn.query(
     " select date_format(LocalTransactionDate, '%b %d, %Y') as datev, LocalTransactionTime as timev, ForwardingInstitutionCountryCode as CardType,   "
-				+ " ProcessingCode as TransactionType, RetrievalReferenceNumber as RetrivalReferance, TransactionAmount as Amount,  "
+				+ " ProcessingCode as TransactionType, MessageType as MessageType, RetrievalReferenceNumber as RetrivalReferance, TransactionAmount as Amount,  "
         + " SettlementDate as SettelmentDate, CardAcceptorIdentification as RetailerId, SystemsTraceAuditNumber as TraceNo, "
-        + " RetrievalReferenceNumber as RRN "
+        + " RetrievalReferenceNumber as RRN, "
+        + " TransactionAmount as TransactionAmount, TotalCommissions as Commissions, TotalTaxes as fees, SUBSTRING(Track2Data, 4) as card, AuthorizationIdentificationResponse as approvalCode "
 				+ " from transactionhistory   "
 				+ " where LocalTransactionDate >= (now()-interval 65 day)   "
 				+ " and CardAcceptorIdentification = ?  "
 				+ " order by LocalTransactionDate desc limit 10;",
+    [req.body.merchantId],
+    function (err, data, fields) {
+      if (err) return next(new AppError(err, 500));
+      res.status(200).json({
+        length: data?.length,
+        data: data,
+      }); 
+    }
+  );
+});
+
+
+app.post('/home_resp_code',(req, res) => {
+  conn.query(
+          " select count(*) as count, th.ResponseCode, ResponseCodeDesc.ResponseDesc "
+          + "from transactionhistory as th "
+          + "LEFT JOIN ResponseCodeDesc ON th.ResponseCode = ResponseCodeDesc.ResponseCode "
+          + "where th.LocalTransactionDate >= (now()-interval 65 day)  "
+          + "and th.CardAcceptorIdentification = ? "
+          + "group by th.ResponseCode ",
     [req.body.merchantId],
     function (err, data, fields) {
       if (err) return next(new AppError(err, 500));
@@ -249,7 +276,7 @@ app.post('/home_tran_type',(req, res) => {
 
 app.post('/tran_history',(req, res) => {
   conn.query(
-          " select sum(FinalAmount) as Sales, count(TransactionAmount) as Transactions, sum(TotalCommissions) as Commission "
+          " select sum(FinalAmount) as Sales, sum(TotalTaxes) as Fees, count(TransactionAmount) as Transactions, sum(TotalCommissions) as Commission "
           + "from transactionhistory where "
           + "LocalTransactionDate >=now()-interval 65 day "
           + "and CardAcceptorIdentification = ? ;",
