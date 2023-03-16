@@ -146,22 +146,22 @@ app.post('/signup_merch_check',(req, res) => {
 app.post('/home_trans_stats',(req, res) => {
   conn.query(
     "select sum(FinalAmount) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'sales' as grp from transactionhistory where "
-				+ "LocalTransactionDate >= (now()-interval 65 day) "
+				+ "LocalTransactionDate >= (now()-interval 500 day) "
 				+ "and CardAcceptorIdentification = ?  "
 				+ "group by LocalTransactionDate "
 				+ "UNION ALL "
 				+ "select sum(TransactionAmount) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'tran' as grp from transactionhistory where "
-				+ "LocalTransactionDate >= (now()-interval 65 day)  "
+				+ "LocalTransactionDate >= (now()-interval 500 day)  "
 				+ "and CardAcceptorIdentification = ?  "
 				+ "group by LocalTransactionDate "
 				+ "UNION ALL "
 				+ "select sum(TotalCommissions) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'comm' as grp from transactionhistory where "
-				+ "LocalTransactionDate >= (now()-interval 65 day)  "
+				+ "LocalTransactionDate >= (now()-interval 500 day)  "
 				+ "and CardAcceptorIdentification = ?  "
 				+ "group by LocalTransactionDate "
 				+ "UNION ALL "
 				+ "select sum(TotalTaxes) as amt, date_format(LocalTransactionDate, '%d %b %Y') as datev, 'fees' as grp from transactionhistory where "
-				+ "LocalTransactionDate >= (now()-interval 65 day)  "
+				+ "LocalTransactionDate >= (now()-interval 500 day)  "
 				+ "and CardAcceptorIdentification = ?  "
 				+ "group by LocalTransactionDate "
         ,
@@ -184,7 +184,7 @@ app.post('/home_trans_latest',(req, res) => {
         + " RetrievalReferenceNumber as RRN, "
         + " TransactionAmount as TransactionAmount, TotalCommissions as Commissions, TotalTaxes as fees, SUBSTRING(Track2Data, 4) as card, AuthorizationIdentificationResponse as approvalCode "
 				+ " from transactionhistory   "
-				+ " where LocalTransactionDate >= (now()-interval 65 day)   "
+				+ " where LocalTransactionDate >= (now()-interval 500 day)   "
 				+ " and CardAcceptorIdentification = ?  "
 				+ " order by LocalTransactionDate desc limit 10;",
     [req.body.merchantId],
@@ -204,7 +204,7 @@ app.post('/home_resp_code',(req, res) => {
           " select count(*) as count, th.ResponseCode, ResponseCodeDesc.ResponseDesc "
           + "from transactionhistory as th "
           + "LEFT JOIN ResponseCodeDesc ON th.ResponseCode = ResponseCodeDesc.ResponseCode "
-          + "where th.LocalTransactionDate >= (now()-interval 65 day)  "
+          + "where th.LocalTransactionDate >= (now()-interval 500 day)  "
           + "and th.CardAcceptorIdentification = ? "
           + "group by th.ResponseCode ",
     [req.body.merchantId],
@@ -223,7 +223,7 @@ app.post('/home_resp_type',(req, res) => {
         " select (sum(if(ResponseCode=00,1,0))/count(*))* 100 as successfulTransactions,  "
 				+ " (sum(if(ResponseCode!=00,1,0))/count(*))* 100 as declainedTransactions "
 				+ " from OMNI_MERCHANT_PORTAL.transactionhistory  "
-				+ " where LocalTransactionDate >=now()-interval 65 day and LocalTransactionDate <=now()  "
+				+ " where LocalTransactionDate >=now()-interval 500 day and LocalTransactionDate <=now()  "
 				+ " and CardAcceptorIdentification = ? ",
     [req.body.merchantId],
     function (err, data, fields) {
@@ -242,7 +242,7 @@ app.post('/home_card_brand_type',(req, res) => {
     + " (sum(if(ForwardingInstitutionCountryCode=2001,1,0))/count(*))* 100 as MasterCardTransactions, "
     + " (sum(if(ForwardingInstitutionCountryCode=2002,1,0))/count(*))* 100 as MaestroTransactions "
     + " from OMNI_MERCHANT_PORTAL.transactionhistory  "
-    + " where LocalTransactionDate >=now()-interval 65 day and LocalTransactionDate <=now()  "
+    + " where LocalTransactionDate >=now()-interval 500 day and LocalTransactionDate <=now()  "
     + " and CardAcceptorIdentification = ? ",
     [req.body.merchantId],
     function (err, data, fields) {
@@ -261,7 +261,7 @@ app.post('/home_tran_type',(req, res) => {
 				+ " (sum(if(ProcessingCode=20000,1,0))/count(*))* 100 as RefundTransactions, "
 				+ " count(*) as TotalTransactions "
 				+ " from OMNI_MERCHANT_PORTAL.transactionhistory  "
-				+ " where LocalTransactionDate >=now()-interval 65 day  "
+				+ " where LocalTransactionDate >=now()-interval 500 day  "
 				+ " and CardAcceptorIdentification = ? ",
     [req.body.merchantId],
     function (err, data, fields) {
@@ -278,7 +278,7 @@ app.post('/tran_history',(req, res) => {
   conn.query(
           " select sum(FinalAmount) as Sales, sum(TotalTaxes) as Fees, count(TransactionAmount) as Transactions, sum(TotalCommissions) as Commission "
           + "from transactionhistory where "
-          + "LocalTransactionDate >=now()-interval 65 day "
+          + "LocalTransactionDate >=now()-interval 500 day "
           + "and CardAcceptorIdentification = ? ;",
     [req.body.merchantId],
     function (err, data, fields) {
@@ -296,10 +296,28 @@ app.post('/tran_history_table',(req, res) => {
           "  select date_format(LocalTransactionDate, '%b %d, %Y') as datev, LocalTransactionTime as timev, ForwardingInstitutionCountryCode as CardType,  "
           + " ProcessingCode as TransactionType, RetrievalReferenceNumber as RetrivalReferance, TransactionAmount as Amount, "
           + " if(ResponseCode=00,1,0) as TransactionStatus "
-          + " from transactionhistory where LocalTransactionDate>= now() - interval 65 day  "
+          + " from transactionhistory where LocalTransactionDate>= now() - interval 500 day  "
           + " and CardAcceptorIdentification = ? "
           + " order by LocalTransactionDate desc ",
     [req.body.merchantId],
+    function (err, data, fields) {
+      if (err) return next(new AppError(err, 500));
+      res.status(200).json({
+        length: data?.length,
+        data: data,
+      }); 
+    }
+  );
+});
+
+app.post('/download_report',(req, res) => {
+  conn.query(
+    "select LocalTransactionDate as Dates, ForwardingInstitutionCountryCode as CardType,  "
+    + "ProcessingCode as TransactionType, RetrievalReferenceNumber as RetrivalReferance, TransactionAmount as Amount, "
+    + "if(ResponseCode=00,'Success','InternalDecline') as TransactionStatus "
+    + "from transactionhistory where LocalTransactionDate= ?  "
+    + "and CardAcceptorIdentification = ? ",
+    [req.body.datev, req.body.merchantId],
     function (err, data, fields) {
       if (err) return next(new AppError(err, 500));
       res.status(200).json({
